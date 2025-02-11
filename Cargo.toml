@@ -1,17 +1,21 @@
 [package]
 name = "tauri-plugin-bluetooth"
 version = "0.1.0"
-authors = [ "You" ]
-description = ""
+authors = ["ParticleG <particle_g@outlook.com>"]
 edition = "2021"
 rust-version = "1.77.2"
-exclude = ["/examples", "/dist-js", "/guest-js", "/node_modules"]
+description = "Tauri plugin for Bluetooth Low Energy"
+readme = "README.md"
+repository = "https://github.com/26F-Studio/tauri-plugin-bluetooth"
+license-file = "LICENSE"
 links = "tauri-plugin-bluetooth"
+exclude = ["/examples", "/dist-js", "/guest-js", "/node_modules"]
 
 [dependencies]
 tauri = { version = "2.2.4" }
 serde = "1.0"
 thiserror = "2"
+btleplug = { version = "0.11.7", features = ["serde"] }
 
 [build-dependencies]
 tauri-plugin = { version = "2.0.3", features = ["build"] }
