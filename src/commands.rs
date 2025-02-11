@@ -16,3 +16,10 @@ pub(crate) async fn ping<R: Runtime>(
 pub(crate) async fn get_availability<R: Runtime>(app: AppHandle<R>) -> Result<bool> {
     app.bluetooth().get_availability()
 }
+
+pub fn collect_handlers<R: Runtime>() -> impl Fn(tauri::ipc::Invoke<R>) -> bool {
+    tauri::generate_handler![
+        ping,
+        get_availability
+    ]
+}

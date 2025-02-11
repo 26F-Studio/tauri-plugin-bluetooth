@@ -22,7 +22,7 @@ pub trait BluetoothExt<R: Runtime> {
     fn bluetooth(&self) -> &Bluetooth<R>;
 }
 
-impl<R: Runtime, T: Manager<R>> crate::BluetoothExt<R> for T {
+impl<R: Runtime, T: Manager<R>> BluetoothExt<R> for T {
     fn bluetooth(&self) -> &Bluetooth<R> {
         self.state::<Bluetooth<R>>().inner()
     }
@@ -30,10 +30,8 @@ impl<R: Runtime, T: Manager<R>> crate::BluetoothExt<R> for T {
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-    use commands::*;
     Builder::new("bluetooth")
-        .invoke_handler(tauri::generate_handler![ping])
-        .invoke_handler(tauri::generate_handler![get_availability])
+        .invoke_handler(commands::collect_handlers())
         .setup(|app, api| {
             #[cfg(mobile)]
             let bluetooth = mobile::init(app, api)?;
