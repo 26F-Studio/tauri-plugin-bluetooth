@@ -12,6 +12,10 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("No available bluetooth adapter")]
     NoAdapter,
+    #[error("Scan start failure")]
+    ScanStartFailure,
+    #[error("Scan stop failure")]
+    ScanStopFailure,
     #[error(transparent)]
     TimeoutExpired(#[from] tokio::time::error::Elapsed),
     #[cfg(mobile)]

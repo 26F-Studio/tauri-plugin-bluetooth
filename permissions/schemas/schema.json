@@ -295,6 +295,16 @@
       "type": "string",
       "oneOf": [
         {
+          "description": "Enables the get_availability command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-availability"
+        },
+        {
+          "description": "Denies the get_availability command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-availability"
+        },
+        {
           "description": "Enables the ping command without any pre-configured scope.",
           "type": "string",
           "const": "allow-ping"
@@ -303,6 +313,16 @@
           "description": "Denies the ping command without any pre-configured scope.",
           "type": "string",
           "const": "deny-ping"
+        },
+        {
+          "description": "Enables the request_device command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-request-device"
+        },
+        {
+          "description": "Denies the request_device command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-request-device"
         },
         {
           "description": "Default permissions for the plugin",

@@ -1,10 +1,9 @@
 pub mod models;
 mod utils;
 
-use crate::{DeviceInfo, Error, RequestDeviceOptions, Result};
-use btleplug::api::{
-    Central, CentralEvent, Manager as _, Peripheral as _, PeripheralProperties, ScanFilter,
-};
+use crate::bluetooth::models::RequestDeviceOptions;
+use crate::{DeviceInfo, Error, Result};
+use btleplug::api::{Central, CentralEvent, Manager as _, Peripheral as _, ScanFilter};
 use btleplug::platform::{Adapter, Manager, Peripheral};
 use futures::stream::StreamExt;
 use std::collections::HashMap;
@@ -12,17 +11,20 @@ use std::sync::Arc;
 use std::time::Duration;
 use tauri::async_runtime::RwLock;
 use tokio::time;
-use utils::match_services;
 use uuid::Uuid;
+
+// 使用更具表达性的类型别名
+type AdapterLock = Arc<RwLock<Option<Adapter>>>;
+type DeviceMap = Arc<RwLock<HashMap<String, Peripheral>>>;
 
 pub async fn init() -> Result<BluetoothManager> {
     BluetoothManager::new().await
 }
 
 pub struct BluetoothManager {
-    _adapter: Arc<RwLock<Option<Adapter>>>,
-    _devices: Arc<RwLock<HashMap<String, Peripheral>>>,
-    _manager: Manager,
+    adapter: AdapterLock,
+    devices: DeviceMap,
+    manager: Manager,
 }
 
 impl BluetoothManager {
@@ -33,39 +35,42 @@ impl BluetoothManager {
     pub async fn with_adapter_index(adapter_index: usize) -> Result<Self> {
         let manager = Manager::new().await?;
         Ok(Self {
-            _adapter: Arc::new(RwLock::new(
+            adapter: Arc::new(RwLock::new(
                 manager.adapters().await?.into_iter().nth(adapter_index),
             )),
-            _devices: Arc::new(RwLock::new(HashMap::new())),
-            _manager: manager,
+            devices: Arc::new(RwLock::new(HashMap::new())),
+            manager,
         })
     }
 
     pub async fn get_availability(&self) -> Result<bool> {
-        Ok(!self._manager.adapters().await?.is_empty())
+        Ok(!self.manager.adapters().await?.is_empty())
     }
 
     pub async fn request_device(&self, options: RequestDeviceOptions) -> Result<DeviceInfo> {
-        let adapter_with_lock = self._adapter.read().await;
+        let adapter_with_lock = self.adapter.read().await;
         let adapter = match adapter_with_lock.as_ref() {
             Some(adapter) => adapter,
             None => return Err(Error::NoAdapter),
         };
 
         let mut events = adapter.events().await?;
-        adapter.start_scan(ScanFilter::default()).await?;
+        adapter
+            .start_scan(ScanFilter::default())
+            .await
+            .map_err(|e| {
+                log::error!("Failed to start scan: {}", e);
+                Error::ScanStartFailure
+            })?;
 
         let (device_id, properties) = time::timeout(Duration::from_secs(30), async {
             while let Some(event) = events.next().await {
                 if let CentralEvent::DeviceDiscovered(id) = event {
                     if let Ok(peripheral) = adapter.peripheral(&id).await {
                         if let Some(properties) = peripheral.properties().await? {
-                            if _match_options(&properties, &options).await {
+                            if utils::match_options(&properties, &options) {
                                 let device_id = Uuid::new_v4().hyphenated().to_string();
-                                self._devices
-                                    .write()
-                                    .await
-                                    .insert(device_id.clone(), peripheral);
+                                self._cache_peripheral(device_id.clone(), peripheral).await;
                                 return Ok((device_id, properties));
                             }
                         }
@@ -76,7 +81,10 @@ impl BluetoothManager {
         })
         .await??;
 
-        adapter.stop_scan().await?;
+        adapter.stop_scan().await.map_err(|e| {
+            log::error!("Failed to stop scan: {}", e);
+            Error::ScanStopFailure
+        })?;
 
         Ok(DeviceInfo {
             id: device_id,
@@ -90,41 +98,30 @@ impl BluetoothManager {
 
     async fn _update_adapter(&self, adapter_index: usize) -> Result<bool> {
         let mut result = true;
-        if self._adapter.read().await.is_none() {
+        if self.adapter.read().await.is_none() {
             let adapter_opt = self
-                ._manager
+                .manager
                 .adapters()
                 .await?
                 .into_iter()
                 .nth(adapter_index);
             result = adapter_opt.is_some();
-            *self._adapter.write().await = adapter_opt;
+            *self.adapter.write().await = adapter_opt;
         }
         Ok(result)
     }
+
+    async fn _cache_peripheral(&self, id: String, peripheral: Peripheral) {
+        self.devices.write().await.entry(id).or_insert(peripheral);
+    }
 }
 
-async fn _match_options(properties: &PeripheralProperties, options: &RequestDeviceOptions) -> bool {
-    if options.accept_all_devices.unwrap_or(false) {
-        return true;
+impl Drop for BluetoothManager {
+    fn drop(&mut self) {
+        if let Some(adapter) = self.adapter.blocking_read().as_ref() {
+            tauri::async_runtime::block_on(async {
+                adapter.stop_scan().await.expect("Failed to stop scan");
+            })
+        }
     }
-
-    let local_name = properties.local_name.as_deref().unwrap_or_default();
-    if let Some(ref filters) = options.filters {
-        return filters.iter().any(|filter| {
-            filter.services.as_ref().map_or(true, |filter_services| {
-                match_services(&properties.services, filter_services)
-            }) && filter
-                .name
-                .as_ref()
-                .map_or(true, |filter_name| local_name == filter_name)
-                && filter
-                    .name_prefix
-                    .as_ref()
-                    .map_or(true, |filter_name_prefix| {
-                        local_name.starts_with(filter_name_prefix)
-                    })
-        });
-    }
-    false
 }
