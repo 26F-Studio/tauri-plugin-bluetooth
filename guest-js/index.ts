@@ -1,24 +1,35 @@
-import { invoke } from '@tauri-apps/api/core'
-
-declare global {
-  interface Window {
-    isTauri?: boolean | undefined
-  }
-}
+import { DeviceInfo } from './types'
+import { tauriInvoke, isTauri } from './utils'
 
 export const ping = async (value: string): Promise<string | null> =>
-  await invoke<{
+  await tauriInvoke<{
     value?: string
-  }>('plugin:bluetooth|ping', {
+  }>('ping', {
     payload: {
       value,
     },
   }).then((r) => (r.value ? r.value : null))
 
 export const getAvailability = async (): Promise<boolean> => {
-  if (window.isTauri) {
-    return await invoke<boolean>('plugin:bluetooth|getAvailability')
+  if (isTauri()) {
+    return await tauriInvoke<boolean>('get_availability')
   } else {
     return (await navigator.bluetooth?.getAvailability()) ?? false
+  }
+}
+
+export const requestDevice = async (
+  options: RequestDeviceOptions,
+) => {
+  if (!(await getAvailability())) {
+    return null
+  }
+
+  if (isTauri()) {
+    const info = await tauriInvoke<DeviceInfo>('request_device', options)
+    console.log(info)
+  } else {
+    const device = await navigator.bluetooth.requestDevice(options)
+    console.log(device)
   }
 }
