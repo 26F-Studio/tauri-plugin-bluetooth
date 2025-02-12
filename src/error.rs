@@ -5,7 +5,15 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
+    BluetoothLE(#[from] btleplug::Error),
+    #[error("Invalid request device options")]
+    InvalidRequestDeviceOptions,
+    #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error("No available bluetooth adapter")]
+    NoAdapter,
+    #[error(transparent)]
+    TimeoutExpired(#[from] tokio::time::error::Elapsed),
     #[cfg(mobile)]
     #[error(transparent)]
     PluginInvoke(#[from] tauri::plugin::mobile::PluginInvokeError),

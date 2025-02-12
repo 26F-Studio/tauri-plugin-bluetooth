@@ -1,3 +1,4 @@
+use crate::bluetooth::models::BluetoothServiceUUID;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -13,25 +14,9 @@ pub struct PingResponse {
 }
 
 /**
-Represents a Bluetooth service UUID which can be either a number or a string.
-
-Typescript equivalent:
-
-```typescript
-type BluetoothServiceUUID = number | string;
-```
-*/
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum BluetoothServiceUUID {
-    Number(u32),
-    String(String),
-}
-
-/**
 Represents a Bluetooth manufacturer data filter.
 
-Typescript equivalent:
+Typescript reference:
 
 ```typescript
 interface BluetoothDataFilter {
@@ -50,7 +35,7 @@ pub struct BluetoothDataFilter {
 /**
 Represents a Bluetooth service data filter.
 
-Typescript equivalent:
+Typescript reference:
 
 ```typescript
 interface BluetoothManufacturerDataFilter extends BluetoothDataFilter {
@@ -69,7 +54,7 @@ pub struct BluetoothManufacturerDataFilter {
 /**
 Represents a Bluetooth service data filter.
 
-Typescript equivalent:
+Typescript reference:
 
 ```typescript
 interface BluetoothServiceDataFilter extends BluetoothDataFilter {
@@ -88,7 +73,7 @@ pub struct BluetoothServiceDataFilter {
 /**
 Represents a filter for Bluetooth LE scans.
 
-Typescript equivalent:
+Typescript reference:
 
 ```typescript
 interface BluetoothLEScanFilter {
@@ -113,38 +98,33 @@ pub struct BluetoothLEScanFilter {
 /**
 Represents options for requesting a Bluetooth device.
 
-Typescript equivalent:
+Omit the `optionalServices` and `optionalManufacturer_data` fields
+because btleplug doesn't have permission issues.
+
+Typescript reference:
 
 ```typescript
 type RequestDeviceOptions = {
-  filters: BluetoothLEScanFilter[];
-  optionalServices?: BluetoothServiceUUID[] | undefined;
-  optionalManufacturerData?: number[] | undefined;
+    filters: BluetoothLEScanFilter[];
+    optionalServices?: BluetoothServiceUUID[] | undefined;
+    optionalManufacturerData?: number[] | undefined;
 } | {
-  acceptAllDevices: boolean;
-  optionalServices?: BluetoothServiceUUID[] | undefined;
-  optionalManufacturerData?: number[] | undefined;
+    acceptAllDevices: boolean;
+    optionalServices?: BluetoothServiceUUID[] | undefined;
+    optionalManufacturerData?: number[] | undefined;
 };
 ```
 */
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum RequestDeviceOptions {
-    Filters {
-        filters: Vec<BluetoothLEScanFilter>,
-        optional_services: Option<Vec<BluetoothServiceUUID>>,
-        optional_manufacturer_data: Option<Vec<u8>>,
-    },
-    AcceptAllDevices {
-        accept_all_devices: bool,
-        optional_services: Option<Vec<BluetoothServiceUUID>>,
-        optional_manufacturer_data: Option<Vec<u8>>,
-    },
+#[serde(rename_all = "camelCase")]
+pub struct RequestDeviceOptions {
+    pub accept_all_devices: Option<bool>,
+    pub filters: Option<Vec<BluetoothLEScanFilter>>,
 }
 
 /**
 Represents the info of a bluetooth device.
-Typescript equivalent:
+Typescript reference:
 
 ```typescript
 interface DeviceInfo {

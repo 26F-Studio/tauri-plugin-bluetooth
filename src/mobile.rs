@@ -13,28 +13,22 @@ tauri::ios_plugin_binding!(init_plugin_bluetooth);
 pub fn init<R: Runtime, C: DeserializeOwned>(
     _app: &AppHandle<R>,
     api: PluginApi<R, C>,
-) -> crate::Result<Bluetooth<R>> {
+) -> crate::Result<PluginBase<R>> {
     #[cfg(target_os = "android")]
     let handle =
         api.register_android_plugin("org.studio26f.tauri.plugin.bluetooth", "ExamplePlugin")?;
     #[cfg(target_os = "ios")]
     let handle = api.register_ios_plugin(init_plugin_bluetooth)?;
-    Ok(Bluetooth(handle))
+    Ok(PluginBase(handle))
 }
 
 /// Access to the bluetooth APIs.
-pub struct Bluetooth<R: Runtime>(PluginHandle<R>);
+pub struct PluginBase<R: Runtime>(PluginHandle<R>);
 
-impl<R: Runtime> Bluetooth<R> {
+impl<R: Runtime> PluginBase<R> {
     pub fn ping(&self, payload: PingRequest) -> crate::Result<PingResponse> {
         self.0
             .run_mobile_plugin("ping", payload)
-            .map_err(Into::into)
-    }
-
-    pub fn get_availability(&self) -> crate::Result<bool> {
-        self.0
-            .run_mobile_plugin("getAvailability", ())
             .map_err(Into::into)
     }
 }
