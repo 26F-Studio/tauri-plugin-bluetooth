@@ -22,7 +22,7 @@ export const requestDevice = async (
   options: RequestDeviceOptions,
 ) => {
   if (!(await getAvailability())) {
-    return null
+    return
   }
 
   if (isTauri()) {
