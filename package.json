@@ -4,7 +4,8 @@
   "description": "JavaScript API for tauri-plugin-bluetooth",
   "author": "ParticleG <particle_g@outlook.com>",
   "contributors": [
-    "ParticleG <particle_g@outlook.com>"
+    "ParticleG <particle_g@outlook.com>",
+    "flaribbit <1149761294@qq.com>"
   ],
   "files": [
     "dist-js",
