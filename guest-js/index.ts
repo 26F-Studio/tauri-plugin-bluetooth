@@ -26,7 +26,7 @@ export const requestDevice = async (
   }
 
   if (isTauri()) {
-    const info = await tauriInvoke<DeviceInfo>('request_device', options)
+    const info = await tauriInvoke<DeviceInfo>('request_device', { options })
     console.log(info)
   } else {
     const device = await navigator.bluetooth.requestDevice(options)
