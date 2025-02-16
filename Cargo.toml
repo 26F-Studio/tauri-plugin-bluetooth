@@ -9,7 +9,17 @@ readme = "README.md"
 repository = "https://github.com/26F-Studio/tauri-plugin-bluetooth"
 license-file = "LICENSE"
 links = "tauri-plugin-bluetooth"
-exclude = ["/examples", "/dist-js", "/guest-js", "/node_modules"]
+exclude = [
+    "/examples", 
+    "/dist-js",
+    "/guest-js", 
+    "/node_modules",
+    "/.prettierrc.json",
+    "/package.json",
+    "/pnpm-lock.yaml",
+    "/rollup.config.js",
+    "/tsconfig.json",
+]
 
 [dependencies]
 tauri = { version = "2.2.4" }
