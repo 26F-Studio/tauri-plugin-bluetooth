@@ -10,6 +10,7 @@ repository = "https://github.com/26F-Studio/tauri-plugin-bluetooth"
 license-file = "LICENSE"
 links = "tauri-plugin-bluetooth"
 exclude = [
+    "/.github",
     "/examples",
     "/dist-js",
     "/guest-js",
