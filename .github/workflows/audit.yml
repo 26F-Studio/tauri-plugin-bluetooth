@@ -1,0 +1,16 @@
+name: Audit Dependencies
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit Rust Dependencies
+        uses: actions-rust-lang/audit@v1
