@@ -30,9 +30,12 @@ jobs:
         run: |
           BASE_NAME=tauri-plugin-bluetooth_${{ steps.git-info.outputs.commit-hash }}_#${{ GITHUB.RUN_NUMBER }}
           echo "base-name=$BASE_NAME" >> $GITHUB_OUTPUT
+
   process-api:
     runs-on: ubuntu-latest
     needs: get-info
+    permissions:
+      id-token: write
     env:
       OUTPUT_FOLDER: ./dist-js
     steps:
