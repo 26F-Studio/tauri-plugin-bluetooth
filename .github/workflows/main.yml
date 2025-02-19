@@ -55,7 +55,7 @@ jobs:
         if: env.BUILD_TYPE == 'release'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm publish --access public
+        run: pnpm publish --access public --no-git-checks
 
   process-crate:
     runs-on: windows-latest
