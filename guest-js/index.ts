@@ -1,4 +1,4 @@
-import { DeviceInfo } from './types'
+import { DeviceInfo, RequestDeviceTauriOptions } from './types'
 import { tauriInvoke, isTauri } from './utils'
 
 export const ping = async (value: string): Promise<string | null> =>
@@ -19,7 +19,7 @@ export const getAvailability = async (): Promise<boolean> => {
 }
 
 export const requestDevice = async (
-  options: RequestDeviceOptions,
+  options: RequestDeviceOptions & RequestDeviceTauriOptions,
 ) => {
   if (!(await getAvailability())) {
     return

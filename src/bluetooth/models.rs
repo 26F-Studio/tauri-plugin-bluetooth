@@ -123,4 +123,6 @@ type RequestDeviceOptions = {
 pub struct RequestDeviceOptions {
     pub accept_all_devices: Option<bool>,
     pub filters: Option<Vec<BluetoothLEScanFilter>>,
+    // Extra fields for btleplug
+    pub timeout: Option<u64>,
 }

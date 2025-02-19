@@ -1,6 +1,6 @@
 {
   "name": "tauri-plugin-bluetooth-api",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "JavaScript API for tauri-plugin-bluetooth",
   "author": "ParticleG <particle_g@outlook.com>",
   "contributors": [

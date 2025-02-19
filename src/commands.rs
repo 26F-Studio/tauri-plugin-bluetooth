@@ -21,7 +21,7 @@ pub(crate) async fn get_availability<R: Runtime>(app: AppHandle<R>) -> Result<bo
 #[command]
 pub(crate) async fn request_device<R: Runtime>(
     app: AppHandle<R>,
-    options: RequestDeviceOptions,
+    options: RequestDeviceOptions
 ) -> Result<DeviceInfo> {
     if !options.accept_all_devices.unwrap_or(false) && options.filters.is_none() {
         return Err(Error::InvalidRequestDeviceOptions);

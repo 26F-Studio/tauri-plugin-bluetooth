@@ -3,18 +3,17 @@ mod utils;
 
 use crate::bluetooth::models::RequestDeviceOptions;
 use crate::{DeviceInfo, Error, Result};
-use btleplug::api::{Central, CentralEvent, Manager as _, Peripheral as _, ScanFilter};
+use base64::prelude::BASE64_STANDARD;
+use base64::Engine;
+use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter};
 use btleplug::platform::{Adapter, Manager, Peripheral};
-use futures::stream::StreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::async_runtime::RwLock;
-use tokio::time;
 use uuid::Uuid;
 
 // 使用更具表达性的类型别名
-type AdapterLock = Arc<RwLock<Option<Adapter>>>;
 type DeviceMap = Arc<RwLock<HashMap<String, Peripheral>>>;
 
 pub async fn init() -> Result<BluetoothManager> {
@@ -22,7 +21,8 @@ pub async fn init() -> Result<BluetoothManager> {
 }
 
 pub struct BluetoothManager {
-    adapter: AdapterLock,
+    adapter_index: usize,
+    address_to_id_map: Arc<RwLock<HashMap<String, String>>>,
     devices: DeviceMap,
     manager: Manager,
 }
@@ -35,9 +35,8 @@ impl BluetoothManager {
     pub async fn with_adapter_index(adapter_index: usize) -> Result<Self> {
         let manager = Manager::new().await?;
         Ok(Self {
-            adapter: Arc::new(RwLock::new(
-                manager.adapters().await?.into_iter().nth(adapter_index),
-            )),
+            adapter_index,
+            address_to_id_map: Arc::new(RwLock::new(HashMap::new())),
             devices: Arc::new(RwLock::new(HashMap::new())),
             manager,
         })
@@ -48,13 +47,11 @@ impl BluetoothManager {
     }
 
     pub async fn request_device(&self, options: RequestDeviceOptions) -> Result<DeviceInfo> {
-        let adapter_with_lock = self.adapter.read().await;
-        let adapter = match adapter_with_lock.as_ref() {
+        let adapter = match self._get_adapter().await? {
             Some(adapter) => adapter,
             None => return Err(Error::NoAdapter),
         };
 
-        let mut events = adapter.events().await?;
         adapter
             .start_scan(ScanFilter::default())
             .await
@@ -62,66 +59,91 @@ impl BluetoothManager {
                 log::error!("Failed to start scan: {}", e);
                 Error::ScanStartFailure
             })?;
-
-        let (device_id, properties) = time::timeout(Duration::from_secs(30), async {
-            while let Some(event) = events.next().await {
-                if let CentralEvent::DeviceDiscovered(id) = event {
-                    if let Ok(peripheral) = adapter.peripheral(&id).await {
-                        if let Some(properties) = peripheral.properties().await? {
-                            if utils::match_options(&properties, &options) {
-                                let device_id = Uuid::new_v4().hyphenated().to_string();
-                                self._cache_peripheral(device_id.clone(), peripheral).await;
-                                return Ok((device_id, properties));
-                            }
-                        }
-                    }
-                }
-            }
-            Err(btleplug::Error::DeviceNotFound)
-        })
-        .await??;
-
+        tokio::time::sleep(Duration::from_millis(options.timeout.unwrap_or(5000))).await;
         adapter.stop_scan().await.map_err(|e| {
             log::error!("Failed to stop scan: {}", e);
             Error::ScanStopFailure
         })?;
 
-        Ok(DeviceInfo {
-            id: device_id,
-            services: properties
-                .services
-                .iter()
-                .map(|uuid| uuid.hyphenated().to_string())
-                .collect(),
-        })
-    }
-
-    async fn _update_adapter(&self, adapter_index: usize) -> Result<bool> {
-        let mut result = true;
-        if self.adapter.read().await.is_none() {
-            let adapter_opt = self
-                .manager
-                .adapters()
-                .await?
-                .into_iter()
-                .nth(adapter_index);
-            result = adapter_opt.is_some();
-            *self.adapter.write().await = adapter_opt;
+        for peripheral in adapter.peripherals().await?.iter() {
+            if let Some(properties) = peripheral.properties().await? {
+                if utils::match_options(&properties, &options) {
+                    log::info!("Found {:#?}", properties);
+                    let device_id = self._cache_peripheral_and_get_id(peripheral).await;
+                    return Ok(DeviceInfo {
+                        id: device_id,
+                        services: properties
+                            .services
+                            .iter()
+                            .map(|uuid| uuid.hyphenated().to_string())
+                            .collect(),
+                    });
+                }
+            }
         }
-        Ok(result)
+        Err(btleplug::Error::DeviceNotFound)?
+
+        // let mut events = adapter.events().await?;
+        // let (device_id, properties) = time::timeout(Duration::from_secs(10), async {
+        //     while let Some(event) = events.next().await {
+        //         if let CentralEvent::DeviceDiscovered(id) = event {
+        //             if let Ok(peripheral) = adapter.peripheral(&id).await {
+        //                 if let Some(properties) = peripheral.properties().await? {
+        //                     if utils::match_options(&properties, &options) {
+        //                         log::info!("Found {:#?}: {:#?}", id, properties);
+        //                         let device_id = self._cache_peripheral_and_get_id(peripheral).await;
+        //                         return Ok((device_id, properties));
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     Err(btleplug::Error::DeviceNotFound)
+        // })
+        // .await??;
     }
 
-    async fn _cache_peripheral(&self, id: String, peripheral: Peripheral) {
-        self.devices.write().await.entry(id).or_insert(peripheral);
+    async fn _cache_peripheral_and_get_id(&self, peripheral: &Peripheral) -> String {
+        if let Some(device_id) = self
+            .address_to_id_map
+            .read()
+            .await
+            .get(&peripheral.address().to_string())
+        {
+            return device_id.clone();
+        }
+
+        // Chromium uses a base64 encoded UUID as the device ID
+        // https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/modules/bluetooth/bluetooth_device.h;l=99
+        let device_id = BASE64_STANDARD.encode(Uuid::new_v4().hyphenated().to_string());
+
+        self.address_to_id_map
+            .write()
+            .await
+            .insert(peripheral.address().to_string(), device_id.clone());
+        self.devices
+            .write()
+            .await
+            .insert(device_id.clone(), peripheral.clone());
+        device_id
+    }
+
+    async fn _get_adapter(&self) -> Result<Option<Adapter>> {
+        Ok(self
+            .manager
+            .adapters()
+            .await?
+            .into_iter()
+            .nth(self.adapter_index))
     }
 }
 
 impl Drop for BluetoothManager {
     fn drop(&mut self) {
-        if let Some(adapter) = self.adapter.blocking_read().as_ref() {
-            tauri::async_runtime::block_on(async {
+        tauri::async_runtime::block_on(async {
+            if let Ok(Some(adapter)) = self._get_adapter().await {
                 adapter.stop_scan().await.expect("Failed to stop scan");
-            })
-        }
+            }
+        })
     }
 }
