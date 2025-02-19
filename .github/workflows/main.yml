@@ -53,10 +53,12 @@ jobs:
           path: ${{ env.OUTPUT_FOLDER }}
       - name: Publish to npm
         if: env.BUILD_TYPE == 'release'
-        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm publish --access public
 
   process-crate:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     needs: get-info
     env:
       OUTPUT_FOLDER: ./target/package
