@@ -42,6 +42,31 @@ impl BluetoothManager {
         })
     }
 
+    pub async fn gatt_connect(&self, device_id: String) -> Result<()> {
+        let devices = self.devices.read().await;
+        let device = match devices.get(&device_id) {
+            Some(peripheral) => peripheral,
+            None => return Err(Error::DeviceNotFound),
+        };
+
+        device.connect().await.map_err(|e| {
+            log::error!("Failed to connect to device: {}", e);
+            Error::GattConnectFailure
+        })?;
+
+        Ok(())
+    }
+
+    pub async fn gatt_connected(&self, device_id: String) -> Result<bool> {
+        let devices = self.devices.read().await;
+        let device = match devices.get(&device_id) {
+            Some(peripheral) => peripheral,
+            None => return Err(Error::DeviceNotFound),
+        };
+
+        Ok(device.is_connected().await?)
+    }
+
     pub async fn get_availability(&self) -> Result<bool> {
         Ok(!self.manager.adapters().await?.is_empty())
     }

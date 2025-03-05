@@ -1,5 +1,7 @@
-import { DeviceInfo, RequestDeviceTauriOptions } from './types'
-import { tauriInvoke, isTauri } from './utils'
+import { isTauri } from '@tauri-apps/api/core'
+
+import { BluetoothDevice, DeviceInfo, RequestDeviceTauriOptions } from './types'
+import { tauriInvoke } from './utils'
 
 export const ping = async (value: string): Promise<string | null> =>
   await tauriInvoke<{
@@ -20,7 +22,7 @@ export const getAvailability = async (): Promise<boolean> => {
 
 export const requestDevice = async (
   options: RequestDeviceOptions & RequestDeviceTauriOptions,
-) => {
+): Promise<BluetoothDevice | undefined> => {
   if (!(await getAvailability())) {
     return
   }

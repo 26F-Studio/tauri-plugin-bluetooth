@@ -6,6 +6,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error(transparent)]
     BluetoothLE(#[from] btleplug::Error),
+    #[error("Device not found")]
+    DeviceNotFound,
+    #[error("Gatt connect failure")]
+    GattConnectFailure,
     #[error("Invalid request device options")]
     InvalidRequestDeviceOptions,
     #[error(transparent)]
